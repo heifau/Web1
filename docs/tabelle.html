@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8" />
+    <title>https://heifau.github.io/gp1/tabelle</title>
+
+    <script>
+        async function jtab() {
+            // fetch('http://localhost:8080/tabelle.json')
+            const response = await fetch('tabelle.json');
+            const data = response.json();
+            return data;
+        }
+    </script>
+</head>
+
+
+<body>
+    <h1>Hier die Tabelle</h1>
+    <div id="TabA">Tabelleninhalt</div>
+
+    <script>
+        async function showtab(prom) {
+            let jtab = await prom;
+            let htab = "";
+            htab = JSON.stringify(jtab);
+            document.getElementById('TabA').innerHTML = htab;
+        }
+        showtab(jtab());
+    </script>
+
+</body>
+
+</html>

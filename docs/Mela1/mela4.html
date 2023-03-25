@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<!--  cd /D C:\Users\heinz\OneDrive\Dokumente\GitHub\gp1\docs -->
+<!--  node static -->
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="Description" content="Mandelbrot mit Maus und Touch Interface">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WebGL2 - 2D</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=1" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+</head>
+<style>
+    #canvas {
+        position: fixed;
+        z-index: -1;
+        touch-action: none;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: rgba(200, 75, 99, 0.384);
+    }
+
+    #Container1 {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        background-color: rgba(0, 0, 0, 0.2);
+        color: rgba(220, 220, 220, 1);
+    }
+
+    input[type=range] {
+        width: 95%;
+    }
+</style>
+
+<body>
+
+    <canvas id="canvas"></canvas>
+    <div class="container" id="Container1">
+        <div id="Zeile1"></div>
+        <br />
+        max_iter: <input type="range" oninput="onInMax_iter(this.value)">
+        <br />
+        Color: <input type="range" oninput="onInColor(this.value)">
+        <br />
+    </div>
+</body>
+
+<script src="webgl-utils.js"></script>
+<noscript>
+    Diese Webseite braucht einen Browser mit Javascript und Webgl2
+</noscript>
+
+<script>
+    "use strict";
+</script>
+
+<script src="vertexvs.glsl"></script>
+
+<!-- <script id="fragmentvs" type="x-shader/x-fragment">#version 300 es -->
+<script src="fragmentvs.glsl"></script>
+
+<script>
+
+    var center = [-0.0, 0.0];
+    var skalierung = [1.0, 1.0];
+    var max_iter = 20;
+    var color = 2.0;
+
+    var mainCounter = 0;
+
+    const pointermap = new Map();
+
+    function downhandler(ev) {
+        pointermap.set(ev.pointerId, ev);
+        if (pointermap.size >= 4) {
+            let Container1 = document.querySelector("#Container1");
+            Container1.style.display = "block";
+            center = [-0.75, 0.0];
+            skalierung = [2.0, 2.0];
+            max_iter = 20;
+            color = 2.0;
+            main();
+        }
+    }
+
+    function onInMax_iter(val) {
+        let nval = Number(val);
+        max_iter = (1 + nval + Math.trunc(Math.exp(nval / 11)));
+        // console.log("onInS1", val, max_iter)
+        main();
+    }
+
+    function onInColor(val) {
+        let nval = Number(val);
+        color = Math.exp((nval - 50) / 20.0);
+        main();
+    }
+
+
+    function movehandler(ev) {
+        if (!pointermap.has(ev.pointerId)) return; // NOP
+        let prev = pointermap.get(ev.pointerId);
+        let dX = prev.clientX - ev.clientX;
+        let dY = prev.clientY - ev.clientY;
+        // if ((Math.abs(dX) + Math.abs(dY)) <= (innerWidth / 100 + innerHeight / 100)) return;
+        pointermap.set(ev.pointerId, ev);
+
+        if (pointermap.size === 1) {
+            center[0] = center[0] + 2.0 * dX / (skalierung[0] * innerWidth);
+            center[1] = center[1] - 2.0 * dY / (skalierung[1] * innerHeight);
+            main();
+        } else if (pointermap.size === 2) {
+            let otherId;
+            let otherX = innerWidth / 2;
+            let otherY = innerHeight / 2;
+            for (let key of pointermap.keys()) {
+                if (key !== ev.pointerId) {
+                    otherId = key;
+                    otherX = pointermap.get(key).clientX;
+                    otherY = pointermap.get(key).clientY;
+                };
+            };
+            let otherCX = skalierung[0] * (otherX / innerWidth - 0.5);
+            let otherCY = skalierung[1] * (otherY / innerHeight - 0.5);
+            if (Math.abs(ev.clientX - otherX) >= 5)
+                skalierung[0] = skalierung[0] * (prev.clientX - otherX) / (ev.clientX - otherX);
+            if (Math.abs(ev.clientY - otherY) >= 5)
+                skalierung[1] = skalierung[1] * (prev.clientY - otherY) / (ev.clientY - otherY);
+            center[0] = center[0] + 2 * (otherCX - skalierung[0] * (otherX / innerWidth - 0.5));
+            center[1] = center[1] - 2 * (otherCY - skalierung[1] * (otherY / innerHeight - 0.5));
+            main();
+        } else if (pointermap.size === 3) {
+            let Container1 = document.querySelector("#Container1");
+            if (dX >= 0) {
+                Container1.style.display = "none";
+            } else {
+                Container1.style.display = "block";
+            };
+
+            main();
+        } else if (pointermap.size >= 4) {
+            let Container1 = document.querySelector("#Container1");
+            Container1.style.display = "block";
+            center = [-0.75, 0.0];
+            skalierung = [2.0, 2.0];
+            max_iter = 20;
+            color = 2.0;
+            main();
+        };
+    }
+
+    function uphandler(ev) {
+        pointermap.delete(ev.pointerId);
+    }
+
+    function onwheelhandler(e) {
+        // console.log("onwheel", e.deltaX, e.deltaY, e.deltaZ) // +-500, +- 125, +-0
+        e.preventDefault();
+        let Container1 = document.querySelector("#Container1");
+        if (e.deltaX < 0) {
+            // max_iter = Math.max(Math.trunc(max_iter * 0.8 - 1), 2);
+            Container1.style.display = "none"
+            main();
+            return;
+        };
+        if (e.deltaX > 0) {
+            // max_iter = Math.min(Math.trunc(max_iter / 0.8 + 1), 99999);
+            Container1.style.display = "block"
+            main();
+            return;
+        };
+
+        if (e.deltaY < 0) {
+            skalierung[0] = skalierung[0] * 2;
+            skalierung[1] = skalierung[1] * 2;
+            // center[0] = center[0] - 1 * skalierung[0] * (e.clientX / innerWidth - 0.5);
+            // center[1] = center[1] + 1 * skalierung[1] * (e.clientY / innerHeight - 0.5);
+        }
+        else if (e.deltaY > 0) {
+            skalierung[0] = skalierung[0] / 2;
+            skalierung[1] = skalierung[1] / 2;
+            // center[0] = center[0] + 2 * skalierung[0] * (e.clientX / innerWidth - 0.5);
+            // center[1] = center[1] - 2 * skalierung[1] * (e.clientY / innerHeight - 0.5);
+        };
+        // center[0] = center[0] + 2 * skalierung[0] * (e.clientX / innerWidth - 0.5);
+        // center[1] = center[1] - 2 * skalierung[1] * (pointer.y / innerHeight - 0.5);
+        main();
+    }
+
+
+    function main() {
+        // Get A WebGL context
+        /** @type {HTMLCanvasElement} */
+        var canvas = document.querySelector("#canvas");
+        var gl = canvas.getContext("webgl2");
+        if (!gl) {
+            return;
+        };
+        mainCounter += 1;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        canvas.onpointerdown = downhandler;
+        canvas.onpointermove = movehandler;
+        canvas.onpointerup = uphandler;
+        canvas.onpointercancel = uphandler;
+        canvas.onpointerout = uphandler;
+        canvas.onpointerleave = uphandler;
+        canvas.onwheel = onwheelhandler;
+
+        webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+        // Tell WebGL how to convert from clip space to pixels
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        // Clear the canvas
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        // Use our boilerplate utils to compile the shaders and link into a program
+        var program = webglUtils.createProgramFromSources(gl, [vertexvs, fragmentvs]);
+        // var program = webglUtils.createProgramFromScripts(gl, ["vertexvs", "fragmentvs"]);
+        // Tell it to use our program (pair of shaders)
+        gl.useProgram(program);
+
+
+        // look up where the vertex data needs to go.
+        var positionALoc = gl.getAttribLocation(program, "a_position");
+        var colorALoc = gl.getAttribLocation(program, "a_color");
+
+
+        // look up uniform locations
+        var colorULoc = gl.getUniformLocation(program, "u_color");
+        var resolutionULoc = gl.getUniformLocation(program, "u_resolution");
+        var centerULoc = gl.getUniformLocation(program, "u_center");
+        var skalierungULoc = gl.getUniformLocation(program, "u_skalierung");
+        var max_iterULoc = gl.getUniformLocation(program, "u_max_iter");
+
+        // Pass in the Uniforms
+
+        gl.uniform1f(colorULoc, color);
+        gl.uniform2f(resolutionULoc, gl.canvas.width, gl.canvas.height);
+        gl.uniform2fv(centerULoc, center);
+        gl.uniform2fv(skalierungULoc, skalierung);
+        gl.uniform1i(max_iterULoc, max_iter);
+
+
+        // Create a vertex array object (attribute state)
+        var vao = gl.createVertexArray();
+
+        // and make it the one we're currently working with
+        gl.bindVertexArray(vao);
+
+
+        // Create a buffer
+        var vertexBuffer = gl.createBuffer();
+        // create the buffer
+        const indexBuffer = gl.createBuffer();
+
+
+
+
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = vertexBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        var vertexarray1 = new Float32Array([
+            // x,y, r,g,b => 4+4  + 4+4+4,  stride 4*5
+            -0.5, -0.25, 0.9, 0.1, 0.1,
+            -1.9, -0.01, 0.9, 0.1, 0.1,
+            -0.5, +0.25, 0.9, 0.1, 0.1,
+            +0.0, +0.01, 0.9, 0.1, 0.1,
+
+            -0.5, -0.75, 0.9, 0.9, 0.1,
+            -0.9, -0.51, 0.9, 0.9, 0.1,
+            -0.5, -0.25, 0.9, 0.9, 0.1,
+            +0.5, -0.51, 0.9, 0.9, 0.1,
+
+
+            0.6, 0.3, 0.0, 0.9, 0.9,
+            0.7, -0.0, 0.9, 0.1, 0.9,
+            0.9, -0.2, 0.0, 0.0, 0.99,
+            0.9, -0.2, 0.0, 0.0, 0.99,
+            // Ende unbenutzt ...
+            0.0, 0.0, 0.0, 0.0, 0.0
+        ]);
+
+        var vertexarray= new Float32Array(999)
+        var vaidx=0;
+        var colr = 0.1;
+        var colg = 0.1;
+        var colb = 0.1;
+        for(var y=-1.0; y<0.91; y=y+0.2) {
+            colr= Math.random();
+            colg= Math.random();
+            colb= Math.random();
+            vertexarray[vaidx+0]= 0.0; //x
+            vertexarray[vaidx+1]= y; //y 
+            vertexarray[vaidx+2]= colr; //r
+            vertexarray[vaidx+3]= colg; //g
+            vertexarray[vaidx+4]= colb; //b
+            vaidx=vaidx+5;
+            vertexarray[vaidx+0]= -0.5-0.5*Math.random(); //x
+            vertexarray[vaidx+1]= y+0.1; //y 
+            vertexarray[vaidx+2]= colr; //r
+            vertexarray[vaidx+3]= colg; //g
+            vertexarray[vaidx+4]= colb; //b
+            vaidx=vaidx+5;
+            vertexarray[vaidx+0]= 0.0; //x
+            vertexarray[vaidx+1]= y+0.2; //y 
+            vertexarray[vaidx+2]= colr; //r
+            vertexarray[vaidx+3]= colg; //g
+            vertexarray[vaidx+4]= colb; //b
+            vaidx=vaidx+5;
+            vertexarray[vaidx+0]= +0.5+0.5*Math.random(); //x
+            vertexarray[vaidx+1]= y+0.1; //y 
+            vertexarray[vaidx+2]= colr; //r
+            vertexarray[vaidx+3]= colg; //g
+            vertexarray[vaidx+4]= colb; //b
+            vaidx=vaidx+5;
+        };
+        gl.bufferData(gl.ARRAY_BUFFER, vertexarray, gl.STATIC_DRAW);
+
+        var uint16idx = new Uint16Array(2 * (7 + 6 + 5 + 4 + 3 + 2 + 1));
+        var idxp = 0;
+        for (var i = 0; i <= 6; i++) {
+            for (var j = i + 1; j <= 7; j++) {
+                uint16idx[idxp] = i;
+                uint16idx[idxp + 1] = j;
+                idxp = idxp + 2;
+            }
+        };
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, uint16idx, gl.STATIC_DRAW);
+
+
+
+        // Turn on the attribute ..  gl.enableVertexAttribArray(index);
+        // Tell the attribute how to get data out of ARRAY_BUFFER gl.vertexAttribPointer(index, size, type, normalize, stride, offset)
+        // var size = 2;          // 1 .. 4
+        // var type = gl.FLOAT;   // the data is 32bit floats
+        // var normalize = false; // don't normalize the data
+        // var stride = 4 * 6;    // the offset in bytes between the beginning of consecutive vertex attributes. Cannot be larger than 255.
+        // If stride is 0, the attribute is assumed to be tightly packed
+        // var offset = 0;        // start at the beginning of the buffer
+        gl.enableVertexAttribArray(positionALoc);
+        gl.vertexAttribPointer(positionALoc, 2, gl.FLOAT, false, 4 * 5, 4 * 0);
+        gl.enableVertexAttribArray(colorALoc);
+        gl.vertexAttribPointer(colorALoc, 2, gl.FLOAT, false, 4 * 5, 4 * 2);
+        //  gl.drawArrays(gl.TRIANGLES /* primitiveType */, 0 /* offset */, 6 /* count */);
+
+        const wid = 40;
+        var num = (vaidx-1) / 5;
+        var drawtyp="unbekannt";
+
+        if (max_iter < 1 * wid) {
+            gl.drawArrays(gl.POINTS, 0, num);
+            drawtyp="POINTS";
+        } else if (max_iter < 2 * wid) {
+            gl.drawArrays(gl.LINE_STRIP, 0, num);
+            drawtyp="LINE_STRIP";
+        } else if (max_iter < 3 * wid) {
+            gl.drawArrays(gl.LINE_LOOP, 0, num);
+            drawtyp="LINE_LOOP";
+        } else if (max_iter < 4 * wid) {
+            gl.drawArrays(gl.LINES, 0, num);
+            drawtyp="LINES";
+        } else if (max_iter < 5 * wid) {
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, num);
+            drawtyp="TRIANGLE_STRIP";
+        } else if (max_iter < 6 * wid) {
+            for(var i=0;i<vaidx;i=i+4) {
+                gl.drawArrays(gl.TRIANGLE_FAN, i, 4);
+            };
+            drawtyp="TRIANGLE_FAN loop";
+        } else if (max_iter < 7 * wid) {
+            gl.drawArrays(gl.TRIANGLES, 0, num);
+            drawtyp="TRIANGLES";
+        } else if (max_iter < 8 * wid) {
+            // gl.drawElements(primitiveType, count, indexType, offset);   
+            gl.drawElements(gl.LINES, uint16idx.length, gl.UNSIGNED_SHORT, 0);
+            drawtyp="LINES elements";
+        } else {
+            gl.drawArrays(gl.POINTS, 0, num);
+            drawtyp="POINTS";
+        };
+
+
+        var Zeile1Element = document.querySelector("#Zeile1");
+        Zeile1Element.innerHTML =
+            "&nbsp;" +
+            drawtyp + " " +
+            mainCounter.toFixed() + " " +
+            center[0].toFixed(6) + " " +
+            center[1].toFixed(6) + " " +
+            skalierung[0].toFixed(6) + " " +
+            skalierung[1].toFixed(6) + " " +
+            max_iter + " " +
+            color.toFixed(2) + " " +
+            "&nbsp;"
+            ;
+    }
+
+
+    main();
+</script>
+
+</html>

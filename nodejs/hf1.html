@@ -1,0 +1,46 @@
+<!doctype html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>hf1</title>
+    <script>
+        var cnt=0;
+        var hftimers = [];
+        const starttime = Date.now();
+        function hff1() {
+            document.getElementById("hfout1").value = cnt.toFixed(2);
+            hff2();
+            return cnt++;
+        };
+    </script>
+</head>
+
+<body>
+    <h1>Header</h1>
+    <script>document.write("qweqwe")</script>
+    <input type="button" value="plus1" id="hfbut1" onclick="hff1()">
+    <input type="button" value="canv1" id="canv1" onclick="hff2()">
+    <input type="button" value="starttimer" id="hfbut2"
+     onclick="hftimers.push(setInterval(hff1,3000))">
+     <input type="button" value="stoptimer" id="hfbut3"
+     onclick="clearInterval(hftimers.pop())">
+    <output name="hfout1" id="hfout1"> </output>
+    <h2>Header2</h2>
+    <canvas id="myCanvas" width="200" height="100" style="border:1px solid #d3d3d3;">
+        Your browser does not support the HTML5 canvas tag.</canvas>
+    <script>
+        var c = document.getElementById("myCanvas");
+        var ctx = c.getContext("2d");
+        var x=0;
+        ctx.moveTo(0,0);
+        ctx.lineTo(x,0);
+        ctx.stroke();
+        function hff2() {
+            var deltatime= (Date.now()-starttime)/1000;
+            ctx.lineTo(deltatime,cnt);
+            ctx.stroke();
+        }
+    </script>
+</body>
+
+</html>

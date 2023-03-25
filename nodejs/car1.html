@@ -1,0 +1,90 @@
+<!doctype html>
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" href="#">
+    <style>
+        .slider {
+            width: 30%;
+            margin-left: 5%;
+        }
+    </style>
+    <title>car1</title>
+    <script>
+        var cnt = 0;
+        var hftimers = [];
+        const starttime = Date.now();
+
+        function ocstop() {
+            var timlast;
+            for (tl = hftimers.pop(); tl !== undefined; tl = hftimers.pop()) {
+                clearInterval(tl);
+            };
+        };
+
+        function hff1() {
+            if (cnt <= 0) {
+                ctx.moveTo(0, ymax/2);
+                ctx.lineTo(1, ymax/2);
+                ctx.stroke();
+                cnt = 2;
+            } else if (cnt < xmax) {
+                ctx.lineTo(cnt, ymax/2 + ymax/3 * Math.sin(cnt / 10));
+                ctx.stroke();
+                cnt += 5;
+            } else {
+                ocstop();
+            };
+        };
+
+        function ocstart() {
+            var timlast;
+            cnt = 0;
+            hftimers.push(setInterval(hff1, 20))
+        };
+
+        function onin(num) {
+            inp = document.getElementById("S" + num.toFixed());
+            outp = document.getElementById("O" + num.toFixed());
+            outp.value = inp.value;
+        }
+    </script>
+</head>
+
+<body>
+    <h1>Carrera</h1>
+    <h2>Eingabe</h2>
+
+    <FORM name="myform" action="/" method="post">
+        <P>
+            Speed <br>
+            <INPUT type="range" name="S1" min="40" max="255" step="10" value="77" class="slider" oninput="onin(1)"
+                id="S1">
+            <output name="O1" id="O1"> S1 </output>
+            <INPUT type="range" name="S2" min="40" max="255" step="10" value="77" class="slider" oninput="onin(2)"
+                id="S2">
+            <output name="O2" id="O2"> S2 </output> <br>
+            <INPUT type="range" name="S3" min="40" max="255" step="10" value="77" class="slider" oninput="onin(3)"
+                id="S3">
+            <output name="O3" id="O3"> S3 </output>
+            <INPUT type="range" name="S4" min="40" max="255" step="10" value="77" class="slider" oninput="onin(4)"
+                id="S4">
+            <output name="O4" id="O4"> S4 </output> <br>
+            <input type="button" value="Stop" id="Stop" onclick="ocstop()">
+            <input type="button" value="Start" id="Start" onclick="ocstart()">
+            <INPUT type="submit"> <INPUT type="reset">
+        </P>
+    </FORM>
+
+    <h2>Grafik</h2>
+    <canvas id="myCanvas" width="200" height="100" style="border:medium solid gray;">
+        Your browser does not support the HTML5 canvas tag.</canvas>
+    <script>
+        var canv= document.getElementById("myCanvas");
+        var ctx = canv.getContext("2d");
+        var xmax= ctx.canvas.width;
+        var ymax= ctx.canvas.height;
+    </script>
+</body>
+
+</html>
